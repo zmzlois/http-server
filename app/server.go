@@ -33,8 +33,10 @@ func main() {
 
 	fmt.Println("Client connected")
 
+	// Close the listener when the application closes.
+	// use defer close to where the resource is created to ensure the resource is cleaned up as soon as it is no longer needed. This is to prevent later errors and easy to debug. Preventing us to forget to clean up the resource and memory leaks.
 	defer connection.Close()
-
+	// Read the incoming connection
 	connectionReader := bufio.NewReader(connection)
 
 	requestInformation, err := connectionReader.ReadString('\n')
