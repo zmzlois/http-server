@@ -15,6 +15,8 @@ type Request struct {
 	headers map[string]string
 }
 
+// TODO: add test
+
 func main() {
 	fmt.Println("Logs from program appear here")
 
@@ -37,7 +39,10 @@ func main() {
 	// use defer close to where the resource is created to ensure the resource is cleaned up as soon as it is no longer needed. This is to prevent later errors and easy to debug. Preventing us to forget to clean up the resource and memory leaks.
 	defer connection.Close()
 	// Read the incoming connection
+	// TODO: bufio util explain
 	connectionReader := bufio.NewReader(connection)
+
+	// TODO: add ReadString explain
 
 	requestInformation, err := connectionReader.ReadString('\n')
 
@@ -46,10 +51,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// TODO: add strings.Fields explain
 	requestInfoParts := strings.Fields(requestInformation)
 
 	request := Request{}
 
+	// TODO: add request header, body, method, path, version explain
 	request.method = requestInfoParts[0]
 	request.path = requestInfoParts[1]
 	request.version = requestInfoParts[2]
@@ -58,8 +65,11 @@ func main() {
 	for {
 		headerLine, err := connectionReader.ReadString('\n')
 		if err != nil || headerLine == "\r\n" {
+			// TODO: this shouldn't break, handle with appropriate error response
 			break
 		}
+
+		// TODO: splitN explain
 		headerParts := strings.SplitN(headerLine, ": ", 2)
 		if len(headerParts) == 2 {
 			key := headerParts[0]
@@ -68,6 +78,7 @@ func main() {
 		}
 	}
 
+	// TODO: if else or switch case? is there any better way to handle this?
 	if request.path == "/" {
 		response := "HTTP/1.1 200 OK\r\n\r\n"
 		_, err = connection.Write([]byte(response))
