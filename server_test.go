@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net"
 	"testing"
@@ -15,6 +16,24 @@ type MockConnection struct {
 	readDeadline  time.Time
 	writeDeadline time.Time
 	Data          *bytes.Buffer
+}
+
+type TestCase struct {
+	request  TestRequest
+	expected TestResponse
+}
+
+type TestRequest struct {
+	Method  string
+	Path    string
+	Host    string
+	Headers map[string]string
+}
+
+type TestResponse struct {
+	Status  string
+	Headers map[string]string
+	Body    string
 }
 
 func (mc *MockConnection) SetDeadline(t time.Time) error {
@@ -65,43 +84,83 @@ func (m *MockConnection) Close() error {
 	return nil
 }
 
-func TestHandleConnection(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{
-			input: "GET / HTTP/1.1\r\nHost: localhost:0.0.0.0:4221\r\n\r\n",
+func requestToString(req TestRequest) string {
+	requestLine := fmt.Sprintf("%s %s HTTP/1.1\r\n", req.Method, req.Path)
+	headers := "Host: " + req.Host + "\r\n"
+	for name, value := range req.Headers {
+		headers += fmt.Sprintf("%s: %s\r\n", name, value)
+	}
+	return requestLine + headers + "\r\n"
+}
 
-			expected: "HTTP/1.1 200 OK\r\n\r\n",
+func TestHandleConnection(t *testing.T) {
+	tests := []TestCase{
+		{
+			request: TestRequest{
+				Method:  "GET",
+				Path:    "/",
+				Host:    "localhost:4221",
+				Headers: map[string]string{},
+			},
+			expected: TestResponse{
+				Status:  "HTTP/1.1 200 OK\r\n",
+				Headers: map[string]string{},
+				Body:    "<!DOCTYPE html><html><body><h1>Include content in response</h1></body></html>",
+			},
 		},
 		{
-			input:    "GET /unknown-path HTTP/1.1\r\nHost: localhost:0.0.0.0:4221\r\n\r\n",
-			expected: "HTTP/1.1 404 Not Found\r\n\r\n",
+			request: TestRequest{
+				Method:  "GET",
+				Path:    "/user-agent",
+				Host:    "localhost:4221",
+				Headers: map[string]string{},
+			},
+			expected: TestResponse{
+				Status:  "HTTP/1.1 200 OK\r\n",
+				Headers: map[string]string{},
+				Body:    "User-Agent: curl/7.64.1\r\n",
+			},
+		},
+		{
+			request: TestRequest{
+				Method:  "GET",
+				Path:    "/unknown-path",
+				Host:    "localhost:4221",
+				Headers: map[string]string{},
+			},
+			expected: TestResponse{
+				Status:  "HTTP/1.1 404 Not Found\r\n",
+				Headers: map[string]string{},
+				Body:    "",
+			},
 		},
 	}
 
 	for _, test := range tests {
 
-		// Initialize a bytes.Buffer for the Data field in MockConnection
-		dataBuffer := bytes.NewBufferString(test.input)
+		t.Run(test.request.Path, func(t *testing.T) {
+			input := requestToString(test.request)
 
-		conn := &MockConnection{
-			Reader:        dataBuffer,
-			Writer:        new(bytes.Buffer), // Add a Writer to the MockConnection
-			Data:          dataBuffer,        // Set Data field to the buffer
-			readDeadline:  time.Now().Add(1 * time.Second),
-			writeDeadline: time.Now().Add(1 * time.Second),
-		}
+			// Initialize a bytes.Buffer for the Data field in MockConnection
+			dataBuffer := bytes.NewBufferString(input)
 
-		// Set the read deadline to 1 second from now and prevent the connection from being closed too early
-		conn.readDeadline = time.Now().Add(1 * time.Second)
+			conn := &MockConnection{
+				Reader:        dataBuffer,
+				Writer:        new(bytes.Buffer), // Add a Writer to the MockConnection
+				Data:          dataBuffer,        // Set Data field to the buffer
+				readDeadline:  time.Now().Add(1 * time.Second),
+				writeDeadline: time.Now().Add(1 * time.Second),
+			}
 
-		handleConnection(conn)
+			// Set the read deadline to 1 second from now and prevent the connection from being closed too early
+			conn.readDeadline = time.Now().Add(1 * time.Second)
 
-		if !conn.closed {
-			t.Errorf("Connection not closed for input: %s", test.input)
-		}
+			handleConnection(conn)
+
+			if !conn.closed {
+				t.Errorf("Connection not closed for input: %s", test.expected.Body)
+			}
+		})
 	}
 
 }
