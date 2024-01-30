@@ -101,6 +101,8 @@ func handleConnection(connection net.Conn) {
 	if request.path == "/" {
 		response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE html><html><body><h1>Include content in response</h1></body></html>"
 
+	} else if request.path == "/user-agent" {
+		response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nContent-Length: 11\r\n\r\ncurl/7.64.1"
 	} else {
 		response = "HTTP/1.1 404 Not Found\r\n\r\n"
 
