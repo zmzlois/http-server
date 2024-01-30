@@ -34,15 +34,15 @@ func main() {
 	}
 	fmt.Print("Listening on port 4221")
 
+	connection, err := listen.Accept()
+
+	fmt.Println("Connection accepted")
+
+	if err != nil {
+		fmt.Println("Failed to accept connection", err.Error())
+		os.Exit(1)
+	}
 	for {
-		connection, err := listen.Accept()
-
-		fmt.Println("Connection accepted")
-
-		if err != nil {
-			fmt.Println("Failed to accept connection", err.Error())
-			os.Exit(1)
-		}
 
 		go handleConnection(connection)
 	}
