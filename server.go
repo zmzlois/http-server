@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -15,6 +16,12 @@ type Request struct {
 	headers map[string]string
 }
 
+type Connection interface {
+	io.Reader
+	io.Writer
+	Close() error
+}
+
 // TODO: add test
 
 func main() {
@@ -22,16 +29,26 @@ func main() {
 
 	listen, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
-		fmt.Println("Filaed to bind to port 4221", err)
+		fmt.Println("Failed to bind to port 4221", err)
 		os.Exit(1)
 	}
+	fmt.Print("Listening on port 4221")
 
-	connection, err := listen.Accept()
+	for {
+		connection, err := listen.Accept()
 
-	if err != nil {
-		fmt.Println("Failed to accept connection", err.Error())
-		os.Exit(1)
+		fmt.Println("Connection accepted")
+
+		if err != nil {
+			fmt.Println("Failed to accept connection", err.Error())
+			os.Exit(1)
+		}
+
+		go handleConnection(connection)
 	}
+}
+
+func handleConnection(connection net.Conn) {
 
 	fmt.Println("Client connected")
 
@@ -54,13 +71,13 @@ func main() {
 	// TODO: add strings.Fields explain
 	requestInfoParts := strings.Fields(requestInformation)
 
-	request := Request{}
-
-	// TODO: add request header, body, method, path, version explain
-	request.method = requestInfoParts[0]
-	request.path = requestInfoParts[1]
-	request.version = requestInfoParts[2]
-	request.headers = make(map[string]string)
+	request := Request{
+		// TODO: add request header, body, method, path, version explain
+		method:  requestInfoParts[0],
+		path:    requestInfoParts[1],
+		version: requestInfoParts[2],
+		headers: make(map[string]string),
+	}
 
 	for {
 		headerLine, err := connectionReader.ReadString('\n')
@@ -78,21 +95,23 @@ func main() {
 		}
 	}
 
+	var response string
+
 	// TODO: if else or switch case? is there any better way to handle this?
 	if request.path == "/" {
-		response := "HTTP/1.1 200 OK\r\n\r\n"
-		_, err = connection.Write([]byte(response))
-		if err != nil {
-			fmt.Println("Error writing data to connection:", err.Error())
-			os.Exit(1)
-		}
+		response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE html><html><body><h1>Include content in response</h1></body></html>"
+
 	} else {
-		response := "HTTP/1.1 404 Not Found\r\n\r\n"
-		_, err = connection.Write([]byte(response))
-		if err != nil {
-			fmt.Println("Error writing data to connection:", err.Error())
-			os.Exit(1)
-		}
+		response = "HTTP/1.1 404 Not Found\r\n\r\n"
+
+	}
+
+	_, err = connection.Write([]byte(response))
+
+	if err != nil {
+		fmt.Println("Error writing data to connection:", err.Error())
+
+		return
 	}
 
 }
