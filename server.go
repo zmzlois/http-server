@@ -2,11 +2,17 @@ package main
 
 import (
 	"bufio"
-	"fmt"
-	"io"
+	"flag"
+	"fmt" // pass in command line
+	"io"  // get file path
 	"net"
 	"os"
 	"strings"
+)
+
+var (
+	okResponse       = []byte("HTTP/1.1 200 OK\r\n\r\n")
+	notFoundResponse = []byte("HTTP/1.1 404 Not Found\r\n\r\n")
 )
 
 type Request struct {
@@ -26,6 +32,17 @@ type Connection interface {
 
 func main() {
 	fmt.Println("Logs from program appear here")
+
+	var dirFlag = flag.String("Directory", ".", "directory parsed from here ---")
+
+	flag.Parse()
+
+	if dirFlag == nil {
+		fmt.Println("Error parsing command line argument.")
+		os.Exit(1)
+	}
+
+	fmt.Println("dirFlat:", *dirFlag)
 
 	listen, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
